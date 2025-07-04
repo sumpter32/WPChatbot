@@ -4,7 +4,7 @@ Tags: chatbot, ai, openwebui, chat, artificial intelligence
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.2
-Stable tag: 1.1.0
+Stable tag: 1.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -107,6 +107,10 @@ Yes, the plugin includes data export and deletion features to comply with privac
 
 == Changelog ==
 
+= 1.2.1 =
+* Improved Elementor widget integration
+* Minor bug fixes and stability improvements
+
 = 1.1.0 =
 * Added conversation memory functionality
 * Implemented automatic contact information extraction
@@ -126,6 +130,9 @@ Yes, the plugin includes data export and deletion features to comply with privac
 * File upload capability
 
 == Upgrade Notice ==
+
+= 1.2.1 =
+Recommended update with minor fixes and improved Elementor support.
 
 = 1.1.0 =
 Major update with conversation memory, contact extraction, and Elementor support. Backup your site before upgrading.
