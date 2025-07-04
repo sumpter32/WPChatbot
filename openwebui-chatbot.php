@@ -522,6 +522,12 @@ function owui_register_settings() {
         'sanitize_callback' => 'owui_sanitize_rate_limit',
         'default' => 100
     ]);
+
+    register_setting('owui_settings', 'owui_rate_limit_per_day', [
+        'type' => 'integer',
+        'sanitize_callback' => 'owui_sanitize_rate_limit',
+        'default' => 1000
+    ]);
 }
 
 /**

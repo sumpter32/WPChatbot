@@ -116,6 +116,30 @@
 
         <hr>
 
+        <h2>🚦 Rate Limiting</h2>
+        <table class="form-table">
+            <tr>
+                <th scope="row"><label for="owui_rate_limit_per_minute">Requests per minute</label></th>
+                <td>
+                    <input type="number" id="owui_rate_limit_per_minute" name="owui_rate_limit_per_minute" value="<?php echo esc_attr(get_option('owui_rate_limit_per_minute', 10)); ?>" class="small-text" min="1" max="1000">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="owui_rate_limit_per_hour">Requests per hour</label></th>
+                <td>
+                    <input type="number" id="owui_rate_limit_per_hour" name="owui_rate_limit_per_hour" value="<?php echo esc_attr(get_option('owui_rate_limit_per_hour', 100)); ?>" class="small-text" min="1" max="1000">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="owui_rate_limit_per_day">Requests per day</label></th>
+                <td>
+                    <input type="number" id="owui_rate_limit_per_day" name="owui_rate_limit_per_day" value="<?php echo esc_attr(get_option('owui_rate_limit_per_day', 1000)); ?>" class="small-text" min="1" max="1000">
+                </td>
+            </tr>
+        </table>
+
+        <hr>
+
         <h2>📧 Email Template</h2>
         <table class="form-table">
             <tr>
