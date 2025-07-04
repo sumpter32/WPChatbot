@@ -138,10 +138,9 @@ class OWUI_Core {
         }
         
         // Check file type
-        $allowed_types = array('pdf', 'txt', 'doc', 'docx', 'csv', 'json');
         $file_type = wp_check_filetype($_FILES['file']['name']);
-        
-        if (!in_array($file_type['ext'], $allowed_types)) {
+
+        if (!in_array($file_type['ext'], OWUI_ALLOWED_FILE_TYPES, true)) {
             wp_send_json_error(__('File type not allowed', 'openwebui-chatbot'));
         }
         

@@ -57,10 +57,9 @@ function owui_format_file_size($bytes) {
  * Check if file type is allowed
  */
 function owui_is_file_type_allowed($filename) {
-    $allowed_types = array('pdf', 'txt', 'doc', 'docx', 'csv', 'json', 'md');
     $file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-    
-    return in_array($file_ext, $allowed_types);
+
+    return in_array($file_ext, OWUI_ALLOWED_FILE_TYPES, true);
 }
 
 /**
