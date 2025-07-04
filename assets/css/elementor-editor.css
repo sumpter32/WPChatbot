@@ -1,0 +1,51 @@
+/* Elementor Editor Styles for OpenWebUI Chatbot */
+
+.elementor-widget-owui_chatbot .elementor-widget-container {
+    position: relative;
+}
+
+/* Preview styling in editor */
+.elementor-editor-active .owui-inline-chat {
+    border: 2px dashed #e1e8ed;
+    background: #f9f9f9;
+    padding: 20px;
+    text-align: center;
+    border-radius: 8px;
+}
+
+.elementor-editor-active .owui-popup-button {
+    display: inline-block;
+    padding: 12px 24px;
+    background: #007cba;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.elementor-editor-active .owui-floating-widget {
+    position: relative;
+    display: inline-block;
+}
+
+.elementor-editor-active .owui-floating-toggle {
+    width: 60px;
+    height: 60px;
+    background: #007cba;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+}
+
+/* Widget icon in Elementor panel */
+.elementor-element .icon .eicon-comments:before {
+    content: "\e90e";
+}
+
+/* Category icon */
+.elementor-panel .elementor-panel-category-title .fa-comments:before {
+    content: "\f086";
+}

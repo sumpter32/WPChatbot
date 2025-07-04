@@ -1,0 +1,614 @@
+/* OpenWebUI Chatbot Admin Styles */
+
+/* Status indicators */
+.owui-status-active {
+    color: #46b450;
+    font-weight: 600;
+}
+
+.owui-status-inactive {
+    color: #dc3232;
+    font-weight: 600;
+}
+
+/* Dashboard stats */
+.owui-dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.stat-box {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.stat-box h3 {
+    margin: 0 0 10px 0;
+    color: #0073aa;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-number {
+    font-size: 32px;
+    font-weight: bold;
+    color: #333;
+    margin: 0;
+}
+
+/* Quick actions */
+.owui-quick-actions {
+    margin: 20px 0;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Conversation view styles */
+.owui-conversation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 5px;
+    border-left: 4px solid #0073aa;
+}
+
+.owui-conversation-info h2 {
+    margin: 0 0 10px 0;
+    color: #0073aa;
+}
+
+.owui-conversation-meta {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.owui-meta-item {
+    padding: 5px 12px;
+    background: #fff;
+    border-radius: 20px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+}
+
+.owui-conversation-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Chat message styles */
+.owui-conversation-view {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 0;
+    max-height: 70vh;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.owui-chat-messages {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+    background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+}
+
+.owui-message-pair {
+    margin-bottom: 25px;
+}
+
+.owui-message {
+    margin-bottom: 8px;
+    display: flex;
+    animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.owui-message-user {
+    justify-content: flex-end;
+}
+
+.owui-message-bot {
+    justify-content: flex-start;
+}
+
+.owui-message-content {
+    max-width: 75%;
+    padding: 14px 18px;
+    border-radius: 20px;
+    position: relative;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    transition: box-shadow 0.2s ease;
+}
+
+.owui-message-content:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.owui-message-user .owui-message-content {
+    background: linear-gradient(135deg, #0073aa, #005a87);
+    color: white;
+    border-bottom-right-radius: 6px;
+}
+
+.owui-message-bot .owui-message-content {
+    background: #f1f3f4;
+    color: #333;
+    border-bottom-left-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.owui-message-text {
+    word-wrap: break-word;
+    line-height: 1.5;
+    font-size: 14px;
+}
+
+.owui-message-text code {
+    background: rgba(255,255,255,0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.owui-message-bot .owui-message-text code {
+    background: rgba(0,0,0,0.1);
+}
+
+.owui-message-time {
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+.owui-message-user .owui-message-time {
+    text-align: right;
+}
+
+/* Conversations grid */
+.owui-conversations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.owui-conversation-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.owui-conversation-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #0073aa, #005a87);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.owui-conversation-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+    border-color: #0073aa;
+}
+
+.owui-conversation-card:hover::before {
+    transform: scaleX(1);
+}
+
+.owui-conversation-card .owui-conversation-header {
+    background: none;
+    padding: 0;
+    margin-bottom: 15px;
+    border: none;
+}
+
+.owui-conversation-title h4 {
+    margin: 0 0 5px 0;
+    color: #0073aa;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.owui-conversation-user {
+    color: #666;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.owui-conversation-meta {
+    flex-direction: column;
+    gap: 8px;
+    text-align: right;
+    align-items: flex-end;
+}
+
+.owui-message-count {
+    background: linear-gradient(135deg, #0073aa, #005a87);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.owui-conversation-date {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+}
+
+.owui-conversation-preview {
+    margin: 15px 0;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    font-style: italic;
+    color: #555;
+    border-left: 3px solid #e0e0e0;
+}
+
+.owui-conversation-preview p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.owui-conversation-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.owui-conversation-actions .button-small {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 4px;
+}
+
+.owui-conversation-contacts {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+    font-size: 12px;
+    color: #666;
+    background: rgba(0,115,170,0.05);
+    padding: 8px 12px;
+    border-radius: 4px;
+}
+
+/* Empty states */
+.owui-no-conversations, .owui-no-messages {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.owui-no-conversations h3 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+/* Filter bar */
+.tablenav {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+}
+
+.tablenav select {
+    margin-right: 10px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.tablenav .button {
+    margin-left: 5px;
+}
+
+.displaying-num {
+    font-weight: 600;
+    color: #666;
+}
+
+/* Model select container */
+.owui-model-select-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.owui-model-select-container select {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* Usage instructions */
+.owui-usage-instructions {
+    margin-top: 40px;
+    background: linear-gradient(135deg, #f8f9fa, #ffffff);
+    padding: 30px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.owui-instructions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+    margin-top: 25px;
+}
+
+.owui-instruction-box {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    border-left: 4px solid #0073aa;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: box-shadow 0.3s ease;
+}
+
+.owui-instruction-box:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.owui-instruction-box h3 {
+    margin-top: 0;
+    color: #0073aa;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.owui-instruction-box code {
+    background: #f1f3f4;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #d63638;
+    border: 1px solid #e0e0e0;
+}
+
+.owui-instruction-box ul, .owui-instruction-box ol {
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.owui-instruction-box li {
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+/* Copy button styles */
+.copy-shortcode {
+    position: relative;
+    overflow: hidden;
+}
+
+.copy-shortcode:after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.copy-shortcode:active:after {
+    width: 300px;
+    height: 300px;
+}
+
+/* Recent conversations table */
+.owui-recent-conversations table {
+    margin-top: 15px;
+}
+
+.owui-recent-conversations th,
+.owui-recent-conversations td {
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.owui-recent-conversations th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.owui-recent-conversations tr:hover {
+    background: #f8f9fa;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .owui-conversations-grid {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
+    
+    .owui-instructions-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .owui-conversations-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .owui-conversation-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .owui-conversation-meta {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .owui-message-content {
+        max-width: 90%;
+    }
+    
+    .owui-conversation-actions {
+        flex-direction: column;
+    }
+    
+    .tablenav {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+    
+    .tablenav .alignleft,
+    .tablenav .alignright {
+        text-align: center;
+    }
+    
+    .owui-dashboard-stats {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+    
+    .owui-instructions-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .owui-conversation-card {
+        padding: 15px;
+    }
+    
+    .owui-conversation-view {
+        margin: 0 -10px;
+        border-radius: 0;
+    }
+    
+    .owui-chat-messages {
+        padding: 15px;
+    }
+    
+    .owui-message-content {
+        max-width: 95%;
+        padding: 12px 14px;
+    }
+    
+    .stat-box {
+        padding: 15px;
+    }
+    
+    .stat-number {
+        font-size: 24px;
+    }
+}
+
+/* Loading states */
+.owui-loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0,115,170,.3);
+    border-radius: 50%;
+    border-top-color: #0073aa;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Success/Error states */
+.owui-success {
+    color: #46b450;
+}
+
+.owui-error {
+    color: #d63638;
+}
+
+/* Tooltips */
+.owui-tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.owui-tooltip:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
+.owui-tooltip:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 117%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #333;
+    z-index: 1000;
+}
