@@ -578,4 +578,11 @@ class OWUI_API {
         
         return $issues;
     }
+    
+    /**
+     * Send chat message without context (simple wrapper)
+     */
+    public function send_chat_message($model, $message, $system_prompt = '') {
+        return $this->send_chat_message_with_context($model, $message, $system_prompt, []);
+    }
 }

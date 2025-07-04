@@ -435,4 +435,8 @@ class OWUI_Contact_Extractor {
             return '';
         }
     }
+
+    public function send_chat_message($model, $message, $system_prompt = '') {
+        return $this->send_chat_message_with_context($model, $message, $system_prompt, []);
+    }
 }

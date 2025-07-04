@@ -44,7 +44,7 @@ class OWUI_Core {
         register_deactivation_hook(OWUI_PLUGIN_PATH . 'openwebui-chatbot.php', array($this, 'deactivate'));
         
         // Initialize integrations
-        $this->init_elementor();
+        //$this->init_elementor(); // Removed to prevent duplicate Elementor registration
         $this->init_shortcodes();
         
         // Add session cleanup cron
@@ -53,44 +53,6 @@ class OWUI_Core {
         if (!wp_next_scheduled('owui_cleanup_sessions')) {
             wp_schedule_event(time(), 'hourly', 'owui_cleanup_sessions');
         }
-    }
-    
-    public function init_elementor() {
-        // Check if Elementor is active and loaded
-        if (!did_action('elementor/loaded')) {
-            return;
-        }
-        
-        // Wait for Elementor to be fully loaded
-        add_action('elementor/widgets/register', array($this, 'register_elementor_widgets'));
-        add_action('elementor/elements/categories_registered', array($this, 'add_elementor_categories'));
-    }
-    
-    public function register_elementor_widgets($widgets_manager) {
-        // Check if Elementor classes are available
-        if (!class_exists('Elementor\Widget_Base') || !class_exists('Elementor\Controls_Manager')) {
-            return;
-        }
-        
-        $widget_file = OWUI_PLUGIN_PATH . 'includes/elementor/class-owui-elementor-widget.php';
-        
-        if (file_exists($widget_file)) {
-            require_once $widget_file;
-            
-            if (class_exists('OWUI_Elementor_Widget')) {
-                $widgets_manager->register(new OWUI_Elementor_Widget());
-            }
-        }
-    }
-    
-    public function add_elementor_categories($elements_manager) {
-        $elements_manager->add_category(
-            'owui-chatbot',
-            [
-                'title' => esc_html__('OpenWebUI Chatbot', 'openwebui-chatbot'),
-                'icon' => 'fa fa-comments',
-            ]
-        );
     }
     
     public function init_shortcodes() {

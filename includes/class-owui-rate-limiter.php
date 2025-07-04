@@ -61,29 +61,47 @@ class OWUI_Rate_Limiter {
      */
     private function check_window_limit($identifier, $window_type, $max_requests, $action) {
         global $wpdb;
-        
         $window_start = $this->get_window_start($window_type);
-        
-        $count = $wpdb->get_var(
-            $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}owui_rate_limits 
-                 WHERE identifier = %s 
-                 AND window_type = %s 
-                 AND window_start >= %s 
-                 AND JSON_EXTRACT(metadata, '$.action') = %s",
-                $identifier,
-                $window_type,
-                $window_start,
-                $action
-            )
-        );
-        
+        $mysql_version = $wpdb->db_version();
+        if (version_compare($mysql_version, '5.7.0', '<')) {
+            // Fallback: match metadata as plain text (less accurate)
+            $count = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$wpdb->prefix}owui_rate_limits \
+                     WHERE identifier = %s \
+                     AND window_type = %s \
+                     AND window_start >= %s \
+                     AND metadata LIKE %s",
+                    $identifier,
+                    $window_type,
+                    $window_start,
+                    '%' . $wpdb->esc_like('"action":"' . $action . '"') . '%'
+                )
+            );
+        } else {
+            $count = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$wpdb->prefix}owui_rate_limits \
+                     WHERE identifier = %s \
+                     AND window_type = %s \
+                     AND window_start >= %s \
+                     AND JSON_EXTRACT(metadata, '$.action') = %s",
+                    $identifier,
+                    $window_type,
+                    $window_start,
+                    $action
+                )
+            );
+        }
         if ($count === null) {
             // Database error, allow request
-            owui_log_error('Rate Limiter', 'Database query failed for rate limit check');
+            owui_log_error('Rate Limiter', 'Database query failed for rate limit check', [
+                'user_id' => get_current_user_id(),
+                'url' => $_SERVER['REQUEST_URI'] ?? '',
+                'method' => $_SERVER['REQUEST_METHOD'] ?? ''
+            ]);
             return true;
         }
-        
         return (int) $count < $max_requests;
     }
     

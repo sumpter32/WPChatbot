@@ -5,7 +5,7 @@ class OWUI_Session_Manager {
     
     public function __construct() {
         // Initialize session if not already started
-        if (!session_id() && !headers_sent()) {
+        if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             session_start();
         }
     }
@@ -19,7 +19,7 @@ class OWUI_Session_Manager {
     }
     
     public function create_session() {
-        if (!session_id() && !headers_sent()) {
+        if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             session_start();
         }
         
@@ -33,7 +33,7 @@ class OWUI_Session_Manager {
     }
     
     public function set_session_data($key, $value) {
-        if (!session_id() && !headers_sent()) {
+        if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             session_start();
         }
         

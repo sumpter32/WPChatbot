@@ -794,3 +794,23 @@ function owui_data_eraser($email_address, $page = 1) {
         'done' => true
     ];
 }
+
+// Health check endpoint for AJAX
+add_action('wp_ajax_owui_health_check', 'owui_health_check');
+add_action('wp_ajax_nopriv_owui_health_check', 'owui_health_check');
+
+function owui_health_check() {
+    global $wpdb;
+    $mysql_version = $wpdb->db_version();
+    $php_version = PHP_VERSION;
+    $plugin_version = OWUI_VERSION;
+    $db_ok = $wpdb->check_connection();
+    wp_send_json_success([
+        'status' => 'ok',
+        'plugin_version' => $plugin_version,
+        'php_version' => $php_version,
+        'mysql_version' => $mysql_version,
+        'db_connection' => $db_ok ? 'ok' : 'error',
+        'time' => current_time('mysql', 1)
+    ]);
+}

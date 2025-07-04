@@ -18,7 +18,7 @@ class OWUI_Elementor_Integration {
         // Make sure our widget file exists and can be loaded
         $widget_file = OWUI_PLUGIN_PATH . 'includes/elementor/class-owui-elementor-widget.php';
         
-        if (file_exists($widget_file)) {
+        if (file_exists($widget_file) && is_readable($widget_file)) {
             require_once $widget_file;
             
             // Check if our widget class exists before registering
