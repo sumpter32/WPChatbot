@@ -1,601 +1,749 @@
 <?php
 /**
- * Admin functionality for OpenWebUI Chatbot
+ * Admin functionality for OpenWebUI Chatbot - Fixed Version
  */
 
-if (!defined('ABSPATH')) exit;
+if (!defined('ABSPATH')) {
+    exit;
+}
 
 class OWUI_Admin {
+    
     private $api;
-    private $core;
-
+    private $db;
+    
     public function init() {
         $this->api = new OWUI_API();
+        $this->db = OWUI_Database::get_instance();
         
-        add_action('admin_menu', array($this, 'add_admin_menu'));
-        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
-        add_action('admin_post_owui_create_chatbot', array($this, 'handle_create_chatbot'));
-        add_action('admin_post_owui_update_chatbot', array($this, 'handle_update_chatbot'));
-        add_action('admin_post_owui_delete_chatbot', array($this, 'handle_delete_chatbot'));
-        add_action('wp_ajax_owui_test_connection', array($this, 'ajax_test_connection'));
-        add_action('wp_ajax_owui_get_models', array($this, 'ajax_get_models'));
-        add_action('wp_ajax_owui_export_csv', array($this, 'ajax_export_csv'));
-        add_action('wp_ajax_owui_export_contacts', array($this, 'ajax_export_contacts'));
-        add_action('wp_ajax_owui_clear_history', array($this, 'ajax_clear_history'));
-        add_action('wp_ajax_owui_get_stats', array($this, 'ajax_get_stats'));
-        add_action('wp_ajax_owui_export_conversation', array($this, 'ajax_export_conversation'));
-        add_action('wp_ajax_owui_delete_conversation', array($this, 'ajax_delete_conversation'));
-        add_action('wp_ajax_owui_test_email', array($this, 'ajax_test_email'));
-        add_action('wp_ajax_owui_end_session', array($this, 'ajax_end_session'));
-        add_action('wp_ajax_nopriv_owui_end_session', array($this, 'ajax_end_session'));
+        add_action('admin_menu', [$this, 'add_admin_menu']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
+        
+        // Secure admin post handlers
+        add_action('admin_post_owui_create_chatbot', [$this, 'handle_create_chatbot']);
+        add_action('admin_post_owui_update_chatbot', [$this, 'handle_update_chatbot']);
+        add_action('admin_post_owui_delete_chatbot', [$this, 'handle_delete_chatbot']);
+        
+        // Secure AJAX handlers
+        add_action('wp_ajax_owui_test_connection', [$this, 'ajax_test_connection']);
+        add_action('wp_ajax_owui_get_models', [$this, 'ajax_get_models']);
+        add_action('wp_ajax_owui_export_csv', [$this, 'ajax_export_csv']);
+        add_action('wp_ajax_owui_export_contacts', [$this, 'ajax_export_contacts']);
+        add_action('wp_ajax_owui_clear_history', [$this, 'ajax_clear_history']);
+        add_action('wp_ajax_owui_get_stats', [$this, 'ajax_get_stats']);
+        add_action('wp_ajax_owui_export_conversation', [$this, 'ajax_export_conversation']);
+        add_action('wp_ajax_owui_delete_conversation', [$this, 'ajax_delete_conversation']);
+        add_action('wp_ajax_owui_test_email', [$this, 'ajax_test_email']);
+        add_action('wp_ajax_owui_end_session', [$this, 'ajax_end_session']);
+        
+        // Allow non-privileged users for session ending
+        add_action('wp_ajax_nopriv_owui_end_session', [$this, 'ajax_end_session']);
     }
-
-    public function get_response_rate() {
-        global $wpdb;
-        $total = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}owui_chat_history");
-        $responded = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}owui_chat_history WHERE response != ''");
-        return $total > 0 ? round(($responded / $total) * 100, 1) : 100;
-    }
-
-    public function ajax_get_stats() {
-        check_ajax_referer('owui_admin_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Unauthorized');
-        }
-        
-        $stats = array(
-            $this->get_active_chatbots_count(),
-            $this->get_total_conversations(),
-            $this->get_response_rate() . '%'
-        );
-        
-        wp_send_json_success($stats);
-    }
-
+    
+    /**
+     * Add admin menu with proper capability checks
+     */
     public function add_admin_menu() {
         add_menu_page(
-            'OpenWebUI Chatbot',
-            'OpenWebUI',
+            __('OpenWebUI Chatbot', 'openwebui-chatbot'),
+            __('OpenWebUI', 'openwebui-chatbot'),
             'manage_options',
             'owui-dashboard',
-            array($this, 'render_dashboard'),
-            'dashicons-format-chat'
+            [$this, 'render_dashboard'],
+            'dashicons-format-chat',
+            30
         );
 
         add_submenu_page(
             'owui-dashboard',
-            'Chatbots',
-            'Chatbots',
+            __('Chatbots', 'openwebui-chatbot'),
+            __('Chatbots', 'openwebui-chatbot'),
             'manage_options',
             'owui-chatbots',
-            array($this, 'render_chatbots')
+            [$this, 'render_chatbots']
         );
 
         add_submenu_page(
             'owui-dashboard',
-            'Chat History',
-            'Chat History',
+            __('Chat History', 'openwebui-chatbot'),
+            __('Chat History', 'openwebui-chatbot'),
             'manage_options',
             'owui-history',
-            array($this, 'render_history')
+            [$this, 'render_history']
         );
 
         add_submenu_page(
             'owui-dashboard',
-            'Contact Information',
-            'Contacts',
+            __('Contact Information', 'openwebui-chatbot'),
+            __('Contacts', 'openwebui-chatbot'),
             'manage_options',
             'owui-contacts',
-            array($this, 'render_contacts')
+            [$this, 'render_contacts']
         );
 
         add_submenu_page(
             'owui-dashboard',
-            'Settings',
-            'Settings',
+            __('Settings', 'openwebui-chatbot'),
+            __('Settings', 'openwebui-chatbot'),
             'manage_options',
             'owui-settings',
-            array($this, 'render_settings')
+            [$this, 'render_settings']
         );
     }
-
+    
+    /**
+     * Enqueue admin assets with proper versioning
+     */
     public function enqueue_admin_assets($hook) {
-        if (strpos($hook, 'owui-') !== false) {
-            wp_enqueue_style('owui-admin', OWUI_PLUGIN_URL . 'assets/css/admin.css', array(), OWUI_VERSION);
-            wp_enqueue_script('owui-admin', OWUI_PLUGIN_URL . 'assets/js/admin.js', array('jquery'), OWUI_VERSION, true);
-            wp_localize_script('owui-admin', 'owui_admin_ajax', array(
-                'ajax_url' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('owui_admin_nonce')
-            ));
+        if (strpos($hook, 'owui-') === false) {
+            return;
         }
+        
+        wp_enqueue_style(
+            'owui-admin',
+            OWUI_PLUGIN_URL . 'assets/css/admin.css',
+            [],
+            OWUI_VERSION
+        );
+        
+        wp_enqueue_script(
+            'owui-admin',
+            OWUI_PLUGIN_URL . 'assets/js/admin.js',
+            ['jquery'],
+            OWUI_VERSION,
+            true
+        );
+        
+        wp_localize_script('owui-admin', 'owui_admin_ajax', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('owui_admin_nonce'),
+            'strings' => [
+                'confirm_delete' => __('Are you sure you want to delete this item? This action cannot be undone.', 'openwebui-chatbot'),
+                'confirm_clear_history' => __('Are you sure you want to clear all chat history? This action cannot be undone.', 'openwebui-chatbot'),
+                'loading' => __('Loading...', 'openwebui-chatbot'),
+                'error' => __('An error occurred. Please try again.', 'openwebui-chatbot'),
+                'success' => __('Operation completed successfully.', 'openwebui-chatbot')
+            ]
+        ]);
     }
-
-    public function ajax_test_email() {
-        check_ajax_referer('owui_admin_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Unauthorized');
-        }
-        
-        // Load the email notifications class
-        if (!class_exists('OWUI_Email_Notifications')) {
-            wp_send_json_error('Email notification system not available');
-        }
-        
-        $email_system = new OWUI_Email_Notifications();
-        $email_system->ajax_test_email();
-    }
-
-    public function ajax_end_session() {
-        check_ajax_referer('owui_admin_nonce', 'nonce');
-        
-        $chatbot_id = absint($_POST['chatbot_id']);
-        $reason = sanitize_text_field($_POST['reason'] ?? 'manual');
-        
-        if (!$chatbot_id) {
-            wp_send_json_error('Invalid chatbot ID');
-        }
-        
-        // Get current session
-        $user_id = get_current_user_id() ?: null;
-        $session_manager = new OWUI_Session_Manager();
-        $session_id = $session_manager->get_or_create_session($chatbot_id, $user_id);
-        
-        if ($session_id) {
-            // Trigger the session ended action for email notifications
-            do_action('owui_session_ended', $session_id, $reason);
-            wp_send_json_success('Session ended');
-        } else {
-            wp_send_json_error('Session not found');
-        }
-    }
-
+    
+    /**
+     * AJAX: Test API connection
+     */
     public function ajax_test_connection() {
-        check_ajax_referer('owui_admin_nonce', 'nonce');
+        OWUI_Security::verify_ajax_nonce($_POST['nonce'], 'owui_admin_nonce');
+        OWUI_Security::check_ajax_capability('manage_options');
         
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Unauthorized');
-        }
-        
-        $success = $this->api->test_connection();
-        
-        if ($success) {
-            wp_send_json_success('Connection successful!');
-        } else {
-            wp_send_json_error('Connection failed. Please check your settings.');
+        try {
+            $success = $this->api->test_connection();
+            
+            if ($success) {
+                wp_send_json_success(__('Connection successful!', 'openwebui-chatbot'));
+            } else {
+                wp_send_json_error(__('Connection failed. Please check your settings.', 'openwebui-chatbot'));
+            }
+            
+        } catch (Exception $e) {
+            owui_log_error('Test Connection', $e->getMessage());
+            wp_send_json_error(__('Connection test failed: ', 'openwebui-chatbot') . $e->getMessage());
         }
     }
-
+    
+    /**
+     * AJAX: Get available models
+     */
     public function ajax_get_models() {
-        check_ajax_referer('owui_admin_nonce', 'nonce');
+        OWUI_Security::verify_ajax_nonce($_POST['nonce'], 'owui_admin_nonce');
+        OWUI_Security::check_ajax_capability('manage_options');
         
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Unauthorized');
-        }
-        
-        $models = $this->api->get_models();
-        
-        if (empty($models)) {
-            wp_send_json_error('No models found or connection failed.');
-        } else {
-            wp_send_json_success($models);
+        try {
+            $models = $this->api->get_models(false); // Force fresh fetch
+            
+            if (empty($models)) {
+                wp_send_json_error(__('No models found or connection failed.', 'openwebui-chatbot'));
+            } else {
+                wp_send_json_success($models);
+            }
+            
+        } catch (Exception $e) {
+            owui_log_error('Get Models', $e->getMessage());
+            wp_send_json_error(__('Failed to fetch models: ', 'openwebui-chatbot') . $e->getMessage());
         }
     }
-
+    
+    /**
+     * AJAX: Export chat history
+     */
     public function ajax_export_csv() {
-        check_ajax_referer('owui_admin_nonce', 'nonce');
+        if (!isset($_GET['nonce']) || !wp_verify_nonce($_GET['nonce'], 'owui_admin_nonce')) {
+            wp_die(__('Security check failed.', 'openwebui-chatbot'), 403);
+        }
         
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(__('Unauthorized access.', 'openwebui-chatbot'), 403);
         }
         
-        global $wpdb;
-        $conversations = $wpdb->get_results("
-            SELECT h.*, c.name as chatbot_name, u.display_name as user_name
-            FROM {$wpdb->prefix}owui_chat_history h 
-            LEFT JOIN {$wpdb->prefix}owui_chatbots c ON h.chatbot_id = c.id 
-            LEFT JOIN {$wpdb->prefix}users u ON h.user_id = u.ID
-            ORDER BY h.created_at DESC
-        ");
-        
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="chat-history-' . date('Y-m-d') . '.csv"');
-        
-        $output = fopen('php://output', 'w');
-        
-        // Add BOM for Excel UTF-8 compatibility
-        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-        
-        fputcsv($output, array('Date', 'Chatbot', 'User', 'Message', 'Response'));
-        
-        foreach ($conversations as $conv) {
-            fputcsv($output, array(
-                $conv->created_at,
-                $conv->chatbot_name ?: 'Unknown',
-                $conv->user_name ?: 'Guest',
-                $conv->message,
-                $conv->response
-            ));
-        }
-        
-        fclose($output);
-        exit;
-    }
-
-    public function ajax_clear_history() {
-        check_ajax_referer('owui_admin_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Unauthorized');
-        }
-        
-        global $wpdb;
-        $result = $wpdb->query("TRUNCATE TABLE {$wpdb->prefix}owui_chat_history");
-        
-        if ($result !== false) {
-            wp_send_json_success('History cleared successfully');
-        } else {
-            wp_send_json_error('Failed to clear history');
+        try {
+            $conversations = $this->db->export_chat_history();
+            
+            $filename = 'chat-history-' . gmdate('Y-m-d-H-i-s') . '.csv';
+            
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Cache-Control: no-cache, must-revalidate');
+            header('Expires: 0');
+            
+            $output = fopen('php://output', 'w');
+            
+            // Add BOM for Excel UTF-8 compatibility
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Headers
+            fputcsv($output, [
+                __('Date', 'openwebui-chatbot'),
+                __('Time', 'openwebui-chatbot'),
+                __('Chatbot', 'openwebui-chatbot'),
+                __('User', 'openwebui-chatbot'),
+                __('Message', 'openwebui-chatbot'),
+                __('Response', 'openwebui-chatbot'),
+                __('Session ID', 'openwebui-chatbot')
+            ]);
+            
+            // Data
+            foreach ($conversations as $conv) {
+                fputcsv($output, [
+                    gmdate('Y-m-d', strtotime($conv->created_at)),
+                    gmdate('H:i:s', strtotime($conv->created_at)),
+                    $conv->chatbot_name ?: __('Unknown', 'openwebui-chatbot'),
+                    $conv->user_name ?: __('Guest', 'openwebui-chatbot'),
+                    $conv->message,
+                    $conv->response,
+                    $conv->session_id
+                ]);
+            }
+            
+            fclose($output);
+            exit;
+            
+        } catch (Exception $e) {
+            owui_log_error('Export CSV', $e->getMessage());
+            wp_die(__('Export failed: ', 'openwebui-chatbot') . $e->getMessage());
         }
     }
-
+    
+    /**
+     * AJAX: Export contacts
+     */
     public function ajax_export_contacts() {
-        check_ajax_referer('owui_admin_nonce', 'nonce');
+        if (!isset($_GET['nonce']) || !wp_verify_nonce($_GET['nonce'], 'owui_admin_nonce')) {
+            wp_die(__('Security check failed.', 'openwebui-chatbot'), 403);
+        }
         
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(__('Unauthorized access.', 'openwebui-chatbot'), 403);
         }
         
         if (!class_exists('OWUI_Contact_Extractor')) {
-            wp_die('Contact extractor not available');
+            wp_die(__('Contact extractor not available.', 'openwebui-chatbot'), 500);
         }
         
-        $extractor = new OWUI_Contact_Extractor();
-        $contacts = $extractor->get_all_contacts(1000);
-        
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="contacts-' . date('Y-m-d') . '.csv"');
-        
-        $output = fopen('php://output', 'w');
-        
-        // Add BOM for Excel UTF-8 compatibility
-        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-        
-        fputcsv($output, array('Date', 'Chatbot', 'Contact Type', 'Contact Value', 'Session ID'));
-        
-        foreach ($contacts as $contact) {
-            fputcsv($output, array(
-                $contact->extracted_at,
-                $contact->chatbot_name ?: 'Unknown',
-                ucfirst($contact->contact_type),
-                $contact->contact_value,
-                $contact->session_id
-            ));
+        try {
+            $extractor = new OWUI_Contact_Extractor();
+            $contacts = $extractor->get_all_contacts(10000); // Large limit for export
+            
+            $filename = 'contacts-' . gmdate('Y-m-d-H-i-s') . '.csv';
+            
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Cache-Control: no-cache, must-revalidate');
+            header('Expires: 0');
+            
+            $output = fopen('php://output', 'w');
+            
+            // Add BOM for Excel UTF-8 compatibility
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Headers
+            fputcsv($output, [
+                __('Date', 'openwebui-chatbot'),
+                __('Chatbot', 'openwebui-chatbot'),
+                __('Contact Type', 'openwebui-chatbot'),
+                __('Contact Value', 'openwebui-chatbot'),
+                __('Session ID', 'openwebui-chatbot')
+            ]);
+            
+            // Data
+            foreach ($contacts as $contact) {
+                fputcsv($output, [
+                    $contact->extracted_at,
+                    $contact->chatbot_name ?: __('Unknown', 'openwebui-chatbot'),
+                    ucfirst($contact->contact_type),
+                    $contact->contact_value,
+                    $contact->session_id
+                ]);
+            }
+            
+            fclose($output);
+            exit;
+            
+        } catch (Exception $e) {
+            owui_log_error('Export Contacts', $e->getMessage());
+            wp_die(__('Export failed: ', 'openwebui-chatbot') . $e->getMessage());
         }
-        
-        fclose($output);
-        exit;
     }
-
+    public function ajax_clear_history() {
+        OWUI_Security::verify_ajax_nonce($_POST['nonce'], 'owui_admin_nonce');
+        OWUI_Security::check_ajax_capability('manage_options');
+        
+        try {
+            global $wpdb;
+            
+            // Use transaction for safety
+            $wpdb->query('START TRANSACTION');
+            
+            // Clear contact info first (foreign key constraint)
+            $wpdb->query("DELETE FROM {$wpdb->prefix}owui_contact_info");
+            
+            // Clear chat history
+            $wpdb->query("DELETE FROM {$wpdb->prefix}owui_chat_history");
+            
+            // End sessions
+            $wpdb->query("UPDATE {$wpdb->prefix}owui_chat_sessions SET ended_at = NOW()");
+            
+            $wpdb->query('COMMIT');
+            
+            owui_log_info('Chat history cleared by admin', ['user_id' => get_current_user_id()]);
+            
+            wp_send_json_success(__('History cleared successfully', 'openwebui-chatbot'));
+            
+        } catch (Exception $e) {
+            global $wpdb;
+            $wpdb->query('ROLLBACK');
+            
+            owui_log_error('Clear History', $e->getMessage());
+            wp_send_json_error(__('Failed to clear history: ', 'openwebui-chatbot') . $e->getMessage());
+        }
+    }
+    
+    /**
+     * AJAX: Get dashboard statistics
+     */
+    public function ajax_get_stats() {
+        OWUI_Security::verify_ajax_nonce($_POST['nonce'], 'owui_admin_nonce');
+        OWUI_Security::check_ajax_capability('manage_options');
+        
+        try {
+            $stats = $this->db->get_dashboard_stats();
+            wp_send_json_success($stats);
+            
+        } catch (Exception $e) {
+            owui_log_error('Get Stats', $e->getMessage());
+            wp_send_json_error(__('Failed to fetch statistics.', 'openwebui-chatbot'));
+        }
+    }
+    
+    /**
+     * AJAX: Export single conversation
+     */
     public function ajax_export_conversation() {
-        check_ajax_referer('owui_admin_nonce', 'nonce');
+        if (!isset($_GET['nonce']) || !wp_verify_nonce($_GET['nonce'], 'owui_admin_nonce')) {
+            wp_die(__('Security check failed.', 'openwebui-chatbot'), 403);
+        }
         
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(__('Unauthorized access.', 'openwebui-chatbot'), 403);
         }
         
-        $session_id = absint($_GET['session_id']);
-        
-        global $wpdb;
-        
-        // Get conversation details
-        $conversation = $wpdb->get_row($wpdb->prepare(
-            "SELECT s.*, c.name as chatbot_name, u.display_name as user_name
-            FROM {$wpdb->prefix}owui_chat_sessions s
-            LEFT JOIN {$wpdb->prefix}owui_chatbots c ON s.chatbot_id = c.id
-            LEFT JOIN {$wpdb->prefix}users u ON s.user_id = u.ID
-            WHERE s.id = %d",
-            $session_id
-        ));
-        
-        if (!$conversation) {
-            wp_die('Conversation not found');
+        $session_id = absint($_GET['session_id'] ?? 0);
+        if (!$session_id) {
+            wp_die(__('Invalid session ID.', 'openwebui-chatbot'), 400);
         }
         
-        // Get messages
-        $messages = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}owui_chat_history 
-            WHERE session_id = %d 
-            ORDER BY created_at ASC",
-            $session_id
-        ));
-        
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="conversation-' . $session_id . '-' . date('Y-m-d') . '.csv"');
-        
-        $output = fopen('php://output', 'w');
-        
-        // Add BOM for Excel UTF-8 compatibility
-        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-        
-        // Add conversation header
-        fputcsv($output, array('Conversation Export'));
-        fputcsv($output, array('Chatbot', $conversation->chatbot_name ?: 'Unknown'));
-        fputcsv($output, array('User', $conversation->user_name ?: 'Guest'));
-        fputcsv($output, array('Started', $conversation->started_at));
-        fputcsv($output, array('Messages', count($messages)));
-        fputcsv($output, array());
-        
-        // Add headers
-        fputcsv($output, array('Time', 'Type', 'Message'));
-        
-        // Add messages
-        foreach ($messages as $message) {
-            fputcsv($output, array(
-                $message->created_at,
-                'User',
-                $message->message
-            ));
-            fputcsv($output, array(
-                $message->created_at,
-                'Bot',
-                $message->response
-            ));
+        try {
+            $conversations = $this->db->export_chat_history(['session_id' => $session_id]);
+            
+            if (empty($conversations)) {
+                wp_die(__('Conversation not found.', 'openwebui-chatbot'), 404);
+            }
+            
+            $filename = 'conversation-' . $session_id . '-' . gmdate('Y-m-d-H-i-s') . '.csv';
+            
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            
+            $output = fopen('php://output', 'w');
+            
+            // Add BOM for Excel UTF-8 compatibility
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Conversation header
+            fputcsv($output, [__('Conversation Export', 'openwebui-chatbot')]);
+            fputcsv($output, [__('Session ID', 'openwebui-chatbot'), $session_id]);
+            fputcsv($output, [__('Exported', 'openwebui-chatbot'), current_time('mysql')]);
+            fputcsv($output, []); // Empty row
+            
+            // Headers
+            fputcsv($output, [
+                __('Time', 'openwebui-chatbot'),
+                __('Type', 'openwebui-chatbot'),
+                __('Message', 'openwebui-chatbot')
+            ]);
+            
+            // Messages
+            foreach ($conversations as $conv) {
+                // User message
+                fputcsv($output, [
+                    $conv->created_at,
+                    __('User', 'openwebui-chatbot'),
+                    $conv->message
+                ]);
+                
+                // Bot response
+                fputcsv($output, [
+                    $conv->created_at,
+                    __('Bot', 'openwebui-chatbot'),
+                    $conv->response
+                ]);
+            }
+            
+            fclose($output);
+            exit;
+            
+        } catch (Exception $e) {
+            owui_log_error('Export Conversation', $e->getMessage());
+            wp_die(__('Export failed: ', 'openwebui-chatbot') . $e->getMessage());
         }
-        
-        fclose($output);
-        exit;
     }
-
+    
+    /**
+     * AJAX: Delete conversation
+     */
     public function ajax_delete_conversation() {
-        check_ajax_referer('owui_admin_nonce', 'nonce');
+        OWUI_Security::verify_ajax_nonce($_POST['nonce'], 'owui_admin_nonce');
+        OWUI_Security::check_ajax_capability('manage_options');
         
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Unauthorized');
+        $session_id = absint($_POST['session_id'] ?? 0);
+        if (!$session_id) {
+            wp_send_json_error(__('Invalid session ID.', 'openwebui-chatbot'));
         }
         
-        $session_id = absint($_POST['session_id']);
-        
-        global $wpdb;
-        
-        // Delete chat history
-        $wpdb->delete(
-            $wpdb->prefix . 'owui_chat_history',
-            array('session_id' => $session_id),
-            array('%d')
-        );
-        
-        // Delete contact info
-        $wpdb->delete(
-            $wpdb->prefix . 'owui_contact_info',
-            array('session_id' => $session_id),
-            array('%d')
-        );
-        
-        // Delete session
-        $result = $wpdb->delete(
-            $wpdb->prefix . 'owui_chat_sessions',
-            array('id' => $session_id),
-            array('%d')
-        );
-        
-        if ($result !== false) {
-            wp_send_json_success('Conversation deleted successfully');
-        } else {
-            wp_send_json_error('Failed to delete conversation');
+        try {
+            global $wpdb;
+            
+            $wpdb->query('START TRANSACTION');
+            
+            // Delete contact info (foreign key cascade should handle this)
+            $wpdb->delete(
+                $wpdb->prefix . 'owui_contact_info',
+                ['session_id' => $session_id],
+                ['%d']
+            );
+            
+            // Delete chat history (foreign key cascade should handle this)
+            $wpdb->delete(
+                $wpdb->prefix . 'owui_chat_history',
+                ['session_id' => $session_id],
+                ['%d']
+            );
+            
+            // Delete session
+            $result = $wpdb->delete(
+                $wpdb->prefix . 'owui_chat_sessions',
+                ['id' => $session_id],
+                ['%d']
+            );
+            
+            if ($result === false) {
+                throw new Exception($wpdb->last_error ?: __('Failed to delete conversation.', 'openwebui-chatbot'));
+            }
+            
+            $wpdb->query('COMMIT');
+            
+            owui_log_info('Conversation deleted by admin', [
+                'session_id' => $session_id,
+                'user_id' => get_current_user_id()
+            ]);
+            
+            wp_send_json_success(__('Conversation deleted successfully', 'openwebui-chatbot'));
+            
+        } catch (Exception $e) {
+            global $wpdb;
+            $wpdb->query('ROLLBACK');
+            
+            owui_log_error('Delete Conversation', $e->getMessage());
+            wp_send_json_error(__('Failed to delete conversation: ', 'openwebui-chatbot') . $e->getMessage());
         }
     }
-
-    public function handle_create_chatbot() {
-        if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+    
+    /**
+     * AJAX: Test email notifications
+     */
+    public function ajax_test_email() {
+        OWUI_Security::verify_ajax_nonce($_POST['nonce'], 'owui_admin_nonce');
+        OWUI_Security::check_ajax_capability('manage_options');
+        
+        if (!class_exists('OWUI_Email_Notifications')) {
+            wp_send_json_error(__('Email notification system not available', 'openwebui-chatbot'));
         }
-
-        check_admin_referer('owui_create_chatbot');
-
-        // Validate required fields
-        if (empty($_POST['chatbot_name']) || empty($_POST['chatbot_model'])) {
-            wp_redirect(admin_url('admin.php?page=owui-chatbots&error=2'));
+        
+        try {
+            $email_system = new OWUI_Email_Notifications();
+            $email_system->ajax_test_email();
+            
+        } catch (Exception $e) {
+            owui_log_error('Test Email', $e->getMessage());
+            wp_send_json_error(__('Failed to send test email: ', 'openwebui-chatbot') . $e->getMessage());
+        }
+    }
+    
+    /**
+     * AJAX: End session (can be called by non-privileged users)
+     */
+    public function ajax_end_session() {
+        // Verify nonce but allow non-privileged users
+        if (isset($_POST['nonce'])) {
+            OWUI_Security::verify_ajax_nonce($_POST['nonce'], 'owui_nonce');
+        }
+        
+        $chatbot_id = absint($_POST['chatbot_id'] ?? 0);
+        $reason = sanitize_text_field($_POST['reason'] ?? 'manual');
+        
+        if (!$chatbot_id) {
+            wp_send_json_error(__('Invalid chatbot ID', 'openwebui-chatbot'));
+        }
+        
+        try {
+            $user_id = get_current_user_id() ?: null;
+            $session_manager = new OWUI_Session_Manager();
+            $session_id = $session_manager->get_or_create_session($chatbot_id, $user_id);
+            
+            if ($session_id) {
+                // Trigger the session ended action for email notifications
+                do_action('owui_session_ended', $session_id, $reason);
+                wp_send_json_success(__('Session ended', 'openwebui-chatbot'));
+            } else {
+                wp_send_json_error(__('Session not found', 'openwebui-chatbot'));
+            }
+            
+        } catch (Exception $e) {
+            owui_log_error('End Session', $e->getMessage());
+            wp_send_json_error(__('Failed to end session', 'openwebui-chatbot'));
+        }
+    }
+    
+    /**
+     * Handle chatbot creation with proper validation
+     */
+    public function handle_create_chatbot() {
+        // Security checks
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Unauthorized access.', 'openwebui-chatbot'), 403);
+        }
+        
+        if (!wp_verify_nonce($_POST['_wpnonce'], 'owui_create_chatbot')) {
+            wp_die(__('Security check failed.', 'openwebui-chatbot'), 403);
+        }
+        
+        try {
+            // Validate required fields
+            $required_fields = ['chatbot_name', 'chatbot_model'];
+            foreach ($required_fields as $field) {
+                if (empty($_POST[$field])) {
+                    throw new InvalidArgumentException(__('Please fill in all required fields.', 'openwebui-chatbot'));
+                }
+            }
+            
+            $data = [
+                'name' => $_POST['chatbot_name'],
+                'model' => $_POST['chatbot_model'],
+                'system_prompt' => $_POST['system_prompt'] ?? '',
+                'greeting_message' => $_POST['greeting_message'] ?? '',
+                'is_active' => 1
+            ];
+            
+            // Handle avatar upload
+            if (!empty($_FILES['chatbot_avatar']['name'])) {
+                $avatar_url = $this->handle_avatar_upload($_FILES['chatbot_avatar']);
+                if ($avatar_url) {
+                    $data['avatar_url'] = $avatar_url;
+                }
+            }
+            
+            $chatbot_id = $this->db->create_chatbot($data);
+            
+            owui_log_info('Chatbot created', [
+                'chatbot_id' => $chatbot_id,
+                'user_id' => get_current_user_id()
+            ]);
+            
+            wp_redirect(add_query_arg(['created' => '1'], admin_url('admin.php?page=owui-chatbots')));
+            exit;
+            
+        } catch (Exception $e) {
+            owui_log_error('Create Chatbot', $e->getMessage());
+            
+            $error_code = $e instanceof InvalidArgumentException ? '2' : '3';
+            wp_redirect(add_query_arg(['error' => $error_code], admin_url('admin.php?page=owui-chatbots')));
             exit;
         }
-
-        $name = sanitize_text_field($_POST['chatbot_name']);
-        $model = sanitize_text_field($_POST['chatbot_model']);
-        $system_prompt = sanitize_textarea_field($_POST['system_prompt'] ?? '');
-        $greeting_message = sanitize_textarea_field($_POST['greeting_message'] ?? '');
-        
-        $data = array(
-            'name' => $name,
-            'model' => $model,
-            'system_prompt' => $system_prompt,
-            'greeting_message' => $greeting_message,
-            'is_active' => 1,
-            'created_at' => current_time('mysql')
-        );
-        
-        $format = array('%s', '%s', '%s', '%s', '%d', '%s');
-        
-        // Handle avatar upload
-        if (!empty($_FILES['chatbot_avatar']['name'])) {
-            $allowed_types = array('image/jpeg', 'image/png', 'image/gif', 'image/webp');
-            $file_type = wp_check_filetype($_FILES['chatbot_avatar']['name']);
-            
-            if (in_array($file_type['type'], $allowed_types)) {
-                // Include WordPress file handling functions if they don't exist
-                if (!function_exists('wp_handle_upload')) {
-                    $upload_file = ABSPATH . 'wp-admin/includes/file.php';
-                    if (file_exists($upload_file)) {
-                        require_once($upload_file);
-                    }
-                }
-                
-                if (!function_exists('wp_handle_upload')) {
-                    // Fallback: skip avatar upload if functions not available
-                    if (defined('WP_DEBUG') && WP_DEBUG) {
-                        error_log('OpenWebUI Chatbot: wp_handle_upload function not available');
-                    }
-                } else {
-                    $upload = wp_handle_upload($_FILES['chatbot_avatar'], array('test_form' => false));
-                    
-                    if (!isset($upload['error']) && isset($upload['url'])) {
-                        $data['avatar_url'] = esc_url_raw($upload['url']);
-                        $format[] = '%s';
-                    }
-                }
-            }
-        }
-
-        global $wpdb;
-        
-        // Debug the insert operation
-        $result = $wpdb->insert(
-            $wpdb->prefix . 'owui_chatbots',
-            $data,
-            $format
-        );
-
-        // Check for database errors
-        if ($result === false) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('OpenWebUI Chatbot - Database error: ' . $wpdb->last_error);
-            }
-            wp_redirect(admin_url('admin.php?page=owui-chatbots&error=3'));
-        } else {
-            wp_redirect(admin_url('admin.php?page=owui-chatbots&created=1'));
-        }
-        exit;
     }
-
+    
+    /**
+     * Handle avatar upload with security validation
+     */
+    private function handle_avatar_upload($file) {
+        try {
+            // Validate file
+            $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            $file_type = wp_check_filetype($file['name']);
+            
+            if (!in_array($file_type['type'], $allowed_types, true)) {
+                throw new InvalidArgumentException(__('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.', 'openwebui-chatbot'));
+            }
+            
+            if ($file['size'] > 2 * 1024 * 1024) { // 2MB limit
+                throw new InvalidArgumentException(__('File size too large. Maximum size is 2MB.', 'openwebui-chatbot'));
+            }
+            
+            // Use WordPress upload handling
+            if (!function_exists('wp_handle_upload')) {
+                require_once ABSPATH . 'wp-admin/includes/file.php';
+            }
+            
+            $upload = wp_handle_upload($file, ['test_form' => false]);
+            
+            if (isset($upload['error'])) {
+                throw new Exception($upload['error']);
+            }
+            
+            return $upload['url'];
+            
+        } catch (Exception $e) {
+            owui_log_error('Avatar Upload', $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Handle chatbot update with proper validation
+     */
     public function handle_update_chatbot() {
+        // Security checks
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(__('Unauthorized access.', 'openwebui-chatbot'), 403);
         }
-
-        check_admin_referer('owui_update_chatbot');
-
-        $id = absint($_POST['chatbot_id']);
-        $name = sanitize_text_field($_POST['chatbot_name']);
-        $model = sanitize_text_field($_POST['chatbot_model']);
-        $system_prompt = sanitize_textarea_field($_POST['system_prompt']);
-        $greeting_message = sanitize_textarea_field($_POST['greeting_message']);
-        $is_active = isset($_POST['is_active']) ? 1 : 0;
         
-        $data = array(
-            'name' => $name,
-            'model' => $model,
-            'system_prompt' => $system_prompt,
-            'greeting_message' => $greeting_message,
-            'is_active' => $is_active
-        );
+        if (!wp_verify_nonce($_POST['_wpnonce'], 'owui_update_chatbot')) {
+            wp_die(__('Security check failed.', 'openwebui-chatbot'), 403);
+        }
         
-        $format = array('%s', '%s', '%s', '%s', '%d');
+        $chatbot_id = absint($_POST['chatbot_id'] ?? 0);
+        if (!$chatbot_id) {
+            wp_die(__('Invalid chatbot ID.', 'openwebui-chatbot'), 400);
+        }
         
-        // Handle avatar upload
-        if (!empty($_FILES['chatbot_avatar']['name'])) {
-            $allowed_types = array('image/jpeg', 'image/png', 'image/gif', 'image/webp');
-            $file_type = wp_check_filetype($_FILES['chatbot_avatar']['name']);
+        try {
+            $data = [
+                'name' => $_POST['chatbot_name'],
+                'model' => $_POST['chatbot_model'],
+                'system_prompt' => $_POST['system_prompt'] ?? '',
+                'greeting_message' => $_POST['greeting_message'] ?? '',
+                'is_active' => isset($_POST['is_active']) ? 1 : 0
+            ];
             
-            if (in_array($file_type['type'], $allowed_types)) {
-                // Include WordPress file handling functions if they don't exist
-                if (!function_exists('wp_handle_upload')) {
-                    $upload_file = ABSPATH . 'wp-admin/includes/file.php';
-                    if (file_exists($upload_file)) {
-                        require_once($upload_file);
-                    }
-                }
-                
-                if (!function_exists('wp_handle_upload')) {
-                    // Fallback: skip avatar upload if functions not available
-                    if (defined('WP_DEBUG') && WP_DEBUG) {
-                        error_log('OpenWebUI Chatbot: wp_handle_upload function not available');
-                    }
-                } else {
-                    $upload = wp_handle_upload($_FILES['chatbot_avatar'], array('test_form' => false));
-                    
-                    if (!isset($upload['error']) && isset($upload['url'])) {
-                        $data['avatar_url'] = esc_url_raw($upload['url']);
-                        $format[] = '%s';
-                    }
+            // Handle avatar upload
+            if (!empty($_FILES['chatbot_avatar']['name'])) {
+                $avatar_url = $this->handle_avatar_upload($_FILES['chatbot_avatar']);
+                if ($avatar_url) {
+                    $data['avatar_url'] = $avatar_url;
                 }
             }
+            
+            $this->db->update_chatbot($chatbot_id, $data);
+            
+            owui_log_info('Chatbot updated', [
+                'chatbot_id' => $chatbot_id,
+                'user_id' => get_current_user_id()
+            ]);
+            
+            wp_redirect(add_query_arg(['updated' => '1'], admin_url('admin.php?page=owui-chatbots')));
+            exit;
+            
+        } catch (Exception $e) {
+            owui_log_error('Update Chatbot', $e->getMessage());
+            
+            wp_redirect(add_query_arg([
+                'action' => 'edit',
+                'id' => $chatbot_id,
+                'error' => '1'
+            ], admin_url('admin.php?page=owui-chatbots')));
+            exit;
         }
-
-        global $wpdb;
-        $result = $wpdb->update(
-            $wpdb->prefix . 'owui_chatbots',
-            $data,
-            array('id' => $id),
-            $format,
-            array('%d')
-        );
-
-        if ($result !== false) {
-            wp_redirect(admin_url('admin.php?page=owui-chatbots&updated=1'));
-        } else {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('OpenWebUI Chatbot - Update error: ' . $wpdb->last_error);
-            }
-            wp_redirect(admin_url('admin.php?page=owui-chatbots&error=1'));
-        }
-        exit;
     }
-
+    
+    /**
+     * Handle chatbot deletion with proper validation
+     */
     public function handle_delete_chatbot() {
+        // Security checks
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(__('Unauthorized access.', 'openwebui-chatbot'), 403);
         }
         
         $chatbot_id = absint($_GET['id'] ?? 0);
-        
         if (!$chatbot_id) {
-            wp_die('Invalid chatbot ID');
+            wp_die(__('Invalid chatbot ID.', 'openwebui-chatbot'), 400);
         }
         
-        check_admin_referer('delete_chatbot_' . $chatbot_id);
-        
-        global $wpdb;
-        
-        // Delete associated chat history
-        $wpdb->delete(
-            $wpdb->prefix . 'owui_chat_history',
-            array('chatbot_id' => $chatbot_id),
-            array('%d')
-        );
-        
-        // Delete chatbot
-        $result = $wpdb->delete(
-            $wpdb->prefix . 'owui_chatbots',
-            array('id' => $chatbot_id),
-            array('%d')
-        );
-        
-        if ($result) {
-            wp_redirect(admin_url('admin.php?page=owui-chatbots&deleted=1'));
-        } else {
-            wp_redirect(admin_url('admin.php?page=owui-chatbots&error=1'));
+        if (!wp_verify_nonce($_GET['_wpnonce'], 'delete_chatbot_' . $chatbot_id)) {
+            wp_die(__('Security check failed.', 'openwebui-chatbot'), 403);
         }
-        exit;
+        
+        try {
+            $this->db->delete_chatbot($chatbot_id);
+            
+            owui_log_info('Chatbot deleted', [
+                'chatbot_id' => $chatbot_id,
+                'user_id' => get_current_user_id()
+            ]);
+            
+            wp_redirect(add_query_arg(['deleted' => '1'], admin_url('admin.php?page=owui-chatbots')));
+            exit;
+            
+        } catch (Exception $e) {
+            owui_log_error('Delete Chatbot', $e->getMessage());
+            
+            wp_redirect(add_query_arg(['error' => '1'], admin_url('admin.php?page=owui-chatbots')));
+            exit;
+        }
     }
-
-    // Admin page render methods
+    
+    // Render methods with proper capability checks
+    
     public function render_dashboard() {
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(__('Unauthorized access.', 'openwebui-chatbot'), 403);
         }
         
-        $admin = $this;
-        $dashboard_file = OWUI_PLUGIN_PATH . 'admin/views/dashboard.php';
-        if (file_exists($dashboard_file)) {
-            include $dashboard_file;
-        } else {
-            echo '<div class="wrap"><h1>Dashboard</h1><p>Dashboard view file not found.</p></div>';
+        try {
+            $stats = $this->db->get_dashboard_stats();
+            $recent_conversations = $this->db->get_conversations(['limit' => 10]);
+            
+            include OWUI_PLUGIN_PATH . 'admin/views/dashboard.php';
+            
+        } catch (Exception $e) {
+            owui_log_error('Dashboard Render', $e->getMessage());
+            printf(
+                '<div class="wrap"><h1>%s</h1><div class="notice notice-error"><p>%s</p></div></div>',
+                esc_html__('Dashboard', 'openwebui-chatbot'),
+                esc_html__('Failed to load dashboard data.', 'openwebui-chatbot')
+            );
         }
     }
-
+    
     public function render_chatbots() {
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(__('Unauthorized access.', 'openwebui-chatbot'), 403);
         }
         
         // Handle edit action
@@ -604,200 +752,371 @@ class OWUI_Admin {
             return;
         }
         
-        $admin = $this;
-        $chatbots_file = OWUI_PLUGIN_PATH . 'admin/views/chatbots.php';
-        if (file_exists($chatbots_file)) {
-            include $chatbots_file;
-        } else {
-            echo '<div class="wrap"><h1>Chatbots</h1><p>Chatbots view file not found.</p></div>';
-        }
+        include OWUI_PLUGIN_PATH . 'admin/views/chatbots.php';
     }
-
+    
     public function render_edit_chatbot() {
         $chatbot_id = absint($_GET['id']);
         
-        global $wpdb;
-        $chatbot = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}owui_chatbots WHERE id = %d",
-            $chatbot_id
-        ));
-        
-        if (!$chatbot) {
-            wp_die('Chatbot not found');
-        }
-        
-        $admin = $this;
-        $edit_file = OWUI_PLUGIN_PATH . 'admin/views/edit-chatbot.php';
-        if (file_exists($edit_file)) {
-            include $edit_file;
-        } else {
-            echo '<div class="wrap"><h1>Edit Chatbot</h1><p>Edit view file not found.</p></div>';
+        try {
+            $chatbot = $this->db->get_chatbot($chatbot_id);
+            
+            if (!$chatbot) {
+                wp_die(__('Chatbot not found.', 'openwebui-chatbot'), 404);
+            }
+            
+            include OWUI_PLUGIN_PATH . 'admin/views/edit-chatbot.php';
+            
+        } catch (Exception $e) {
+            owui_log_error('Edit Chatbot Render', $e->getMessage());
+            wp_die(__('Failed to load chatbot data.', 'openwebui-chatbot'));
         }
     }
-
+    
     public function render_history() {
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(__('Unauthorized access.', 'openwebui-chatbot'), 403);
         }
         
-        $admin = $this;
-        $history_file = OWUI_PLUGIN_PATH . 'admin/views/history.php';
-        if (file_exists($history_file)) {
-            include $history_file;
-        } else {
-            echo '<div class="wrap"><h1>Chat History</h1><p>History view file not found.</p></div>';
-        }
+        include OWUI_PLUGIN_PATH . 'admin/views/history.php';
     }
-
+    
     public function render_contacts() {
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(__('Unauthorized access.', 'openwebui-chatbot'), 403);
         }
         
-        $admin = $this;
-        $contacts_file = OWUI_PLUGIN_PATH . 'admin/views/contacts.php';
-        if (file_exists($contacts_file)) {
-            include $contacts_file;
-        } else {
-            echo '<div class="wrap"><h1>Contact Information</h1><p>Contacts view file not found.</p></div>';
-        }
+        include OWUI_PLUGIN_PATH . 'admin/views/contacts.php';
     }
-
+    
     public function render_settings() {
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
+            wp_die(__('Unauthorized access.', 'openwebui-chatbot'), 403);
         }
         
-        $admin = $this;
-        $settings_file = OWUI_PLUGIN_PATH . 'admin/views/settings.php';
-        if (file_exists($settings_file)) {
-            include $settings_file;
-        } else {
-            echo '<div class="wrap"><h1>Settings</h1><p>Settings view file not found.</p></div>';
-        }
+        include OWUI_PLUGIN_PATH . 'admin/views/settings.php';
     }
-
+    
+    // Helper methods for rendering
+    
     public function render_model_options($selected = '') {
-        $models = $this->api->get_models();
-        if (empty($models)) {
-            echo '<option value="">' . esc_html__('No models available', 'openwebui-chatbot') . '</option>';
-            return;
-        }
-        
-        foreach ($models as $model) {
-            $selected_attr = selected($selected, $model, false);
-            echo '<option value="' . esc_attr($model) . '"' . $selected_attr . '>' . esc_html($model) . '</option>';
+        try {
+            $models = $this->api->get_models();
+            
+            if (empty($models)) {
+                printf(
+                    '<option value="">%s</option>',
+                    esc_html__('No models available', 'openwebui-chatbot')
+                );
+                return;
+            }
+            
+            foreach ($models as $model) {
+                printf(
+                    '<option value="%s"%s>%s</option>',
+                    esc_attr($model),
+                    selected($selected, $model, false),
+                    esc_html($model)
+                );
+            }
+            
+        } catch (Exception $e) {
+            owui_log_error('Render Model Options', $e->getMessage());
+            printf(
+                '<option value="">%s</option>',
+                esc_html__('Error loading models', 'openwebui-chatbot')
+            );
         }
     }
-
+    
     public function render_chatbot_list() {
-        global $wpdb;
-        $chatbots = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}owui_chatbots ORDER BY created_at DESC");
+        try {
+            $chatbots = $this->db->get_active_chatbots(false); // No cache for admin
+            
+            if (empty($chatbots)) {
+                printf(
+                    '<tr><td colspan="5">%s</td></tr>',
+                    esc_html__('No chatbots created yet.', 'openwebui-chatbot')
+                );
+                return;
+            }
 
-        if (empty($chatbots)) {
-            echo '<tr><td colspan="5">' . esc_html__('No chatbots created yet.', 'openwebui-chatbot') . '</td></tr>';
-            return;
+            foreach ($chatbots as $chatbot) {
+                $this->render_chatbot_row($chatbot);
+            }
+            
+        } catch (Exception $e) {
+            owui_log_error('Render Chatbot List', $e->getMessage());
+            printf(
+                '<tr><td colspan="5">%s</td></tr>',
+                esc_html__('Error loading chatbots.', 'openwebui-chatbot')
+            );
         }
-
-        foreach ($chatbots as $chatbot) {
-            $edit_url = admin_url('admin.php?page=owui-chatbots&action=edit&id=' . $chatbot->id);
-            $delete_url = wp_nonce_url(
-                admin_url('admin-post.php?action=owui_delete_chatbot&id=' . $chatbot->id),
-                'delete_chatbot_' . $chatbot->id
+    }
+    
+    private function render_chatbot_row($chatbot) {
+        $edit_url = add_query_arg([
+            'page' => 'owui-chatbots',
+            'action' => 'edit',
+            'id' => $chatbot->id
+        ], admin_url('admin.php'));
+        
+        $delete_url = wp_nonce_url(
+            add_query_arg([
+                'action' => 'owui_delete_chatbot',
+                'id' => $chatbot->id
+            ], admin_url('admin-post.php')),
+            'delete_chatbot_' . $chatbot->id
+        );
+        
+        $status = $chatbot->is_active ? 
+            __('Active', 'openwebui-chatbot') : 
+            __('Inactive', 'openwebui-chatbot');
+        $status_class = $chatbot->is_active ? 'owui-status-active' : 'owui-status-inactive';
+        
+        printf('<tr>');
+        
+        // Name column with avatar
+        printf('<td>');
+        if ($chatbot->avatar_url) {
+            printf(
+                '<img src="%s" alt="%s" style="width: 24px; height: 24px; border-radius: 50%%; margin-right: 8px; vertical-align: middle;">',
+                esc_url($chatbot->avatar_url),
+                esc_attr($chatbot->name)
+            );
+        }
+        printf('%s</td>', esc_html($chatbot->name));
+        
+        // Model column
+        printf('<td>%s</td>', esc_html($chatbot->model));
+        
+        // Status column
+        printf(
+            '<td><span class="%s">%s</span></td>',
+            esc_attr($status_class),
+            esc_html($status)
+        );
+        
+        // Created column
+        printf(
+            '<td>%s</td>',
+            esc_html(wp_date(get_option('date_format'), strtotime($chatbot->created_at)))
+        );
+        
+        // Actions column
+        printf('<td>');
+        printf(
+            '<a href="%s" class="button button-small">%s</a> ',
+            esc_url($edit_url),
+            esc_html__('Edit', 'openwebui-chatbot')
+        );
+        
+        printf(
+            '<button class="button button-small copy-shortcode" data-shortcode="%s" title="%s">%s</button> ',
+            esc_attr('[openwebui_chatbot id="' . $chatbot->id . '"]'),
+            esc_attr__('Copy shortcode', 'openwebui-chatbot'),
+            esc_html__('Copy Shortcode', 'openwebui-chatbot')
+        );
+        
+        printf(
+            '<a href="%s" class="button button-small button-link-delete" onclick="return confirm(\'%s\')">%s</a>',
+            esc_url($delete_url),
+            esc_js__('Are you sure you want to delete this chatbot? This will also delete all associated chat history.', 'openwebui-chatbot'),
+            esc_html__('Delete', 'openwebui-chatbot')
+        );
+        
+        printf('</td>');
+        printf('</tr>');
+    }
+    
+    // Dashboard helper methods
+    
+    /**
+     * Get active chatbots count
+     */
+    public function get_active_chatbots_count() {
+        try {
+            $stats = $this->db->get_dashboard_stats();
+            return $stats['active_chatbots'] ?? 0;
+        } catch (Exception $e) {
+            owui_log_error('Get Active Chatbots Count', $e->getMessage());
+            return 0;
+        }
+    }
+    
+    /**
+     * Get total conversations count
+     */
+    public function get_total_conversations() {
+        try {
+            $stats = $this->db->get_dashboard_stats();
+            return $stats['total_conversations'] ?? 0;
+        } catch (Exception $e) {
+            owui_log_error('Get Total Conversations', $e->getMessage());
+            return 0;
+        }
+    }
+    
+    /**
+     * Get response rate percentage
+     */
+    public function get_response_rate() {
+        try {
+            $stats = $this->db->get_dashboard_stats();
+            return $stats['response_rate'] ?? 100;
+        } catch (Exception $e) {
+            owui_log_error('Get Response Rate', $e->getMessage());
+            return 100;
+        }
+    }
+    
+    /**
+     * Get total contacts collected
+     */
+    public function get_total_contacts() {
+        try {
+            $stats = $this->db->get_dashboard_stats();
+            return $stats['total_contacts'] ?? 0;
+        } catch (Exception $e) {
+            owui_log_error('Get Total Contacts', $e->getMessage());
+            return 0;
+        }
+    }
+    
+    /**
+     * Render recent conversations for dashboard
+     */
+    public function render_recent_conversations() {
+        try {
+            $conversations = $this->db->get_conversations(['limit' => 10]);
+            
+            if (empty($conversations)) {
+                printf(
+                    '<p>%s</p>',
+                    esc_html__('No conversations yet.', 'openwebui-chatbot')
+                );
+                return;
+            }
+            
+            echo '<table class="wp-list-table widefat fixed striped">';
+            echo '<thead><tr>';
+            printf('<th>%s</th>', esc_html__('Time', 'openwebui-chatbot'));
+            printf('<th>%s</th>', esc_html__('Chatbot', 'openwebui-chatbot'));
+            printf('<th>%s</th>', esc_html__('User', 'openwebui-chatbot'));
+            printf('<th>%s</th>', esc_html__('Messages', 'openwebui-chatbot'));
+            printf('<th>%s</th>', esc_html__('Status', 'openwebui-chatbot'));
+            echo '</tr></thead>';
+            echo '<tbody>';
+            
+            foreach ($conversations as $conv) {
+                $time_ago = human_time_diff(
+                    strtotime($conv->last_message ?? $conv->started_at),
+                    current_time('timestamp')
+                );
+                
+                printf('<tr>');
+                printf(
+                    '<td>%s</td>',
+                    esc_html(sprintf(__('%s ago', 'openwebui-chatbot'), $time_ago))
+                );
+                printf(
+                    '<td>%s</td>',
+                    esc_html($conv->chatbot_name ?: __('Unknown', 'openwebui-chatbot'))
+                );
+                printf(
+                    '<td>%s</td>',
+                    esc_html($conv->user_name ?: __('Guest', 'openwebui-chatbot'))
+                );
+                printf(
+                    '<td>%d</td>',
+                    absint($conv->message_count ?? 0)
+                );
+                printf(
+                    '<td>%s</td>',
+                    $conv->ended_at ? 
+                        esc_html__('Ended', 'openwebui-chatbot') : 
+                        esc_html__('Active', 'openwebui-chatbot')
+                );
+                printf('</tr>');
+            }
+            
+            echo '</tbody></table>';
+            
+            // Link to full history
+            printf(
+                '<p><a href="%s" class="button">%s</a></p>',
+                esc_url(admin_url('admin.php?page=owui-history')),
+                esc_html__('View All Conversations', 'openwebui-chatbot')
             );
             
-            $status = $chatbot->is_active ? 'Active' : 'Inactive';
-            $status_class = $chatbot->is_active ? 'owui-status-active' : 'owui-status-inactive';
-            
-            echo '<tr>';
-            echo '<td>';
-            if ($chatbot->avatar_url) {
-                echo '<img src="' . esc_url($chatbot->avatar_url) . '" alt="Avatar" style="width: 24px; height: 24px; border-radius: 50%; margin-right: 8px; vertical-align: middle;">';
-            }
-            echo esc_html($chatbot->name);
-            echo '</td>';
-            echo '<td>' . esc_html($chatbot->model) . '</td>';
-            echo '<td><span class="' . esc_attr($status_class) . '">' . esc_html($status) . '</span></td>';
-            echo '<td>' . esc_html(date('M j, Y', strtotime($chatbot->created_at))) . '</td>';
-            echo '<td>';
-            echo '<a href="' . esc_url($edit_url) . '" class="button button-small">Edit</a> ';
-            
-            // Shortcode buttons
-            echo '<button class="button button-small copy-shortcode" data-shortcode="[openwebui_chatbot id=&quot;' . $chatbot->id . '&quot;]" title="Copy shortcode">Copy Shortcode</button> ';
-            
-            echo '<a href="' . esc_url($delete_url) . '" class="button button-small button-link-delete" onclick="return confirm(\'Are you sure you want to delete this chatbot? This will also delete all associated chat history.\')">Delete</a>';
-            echo '</td>';
-            echo '</tr>';
+        } catch (Exception $e) {
+            owui_log_error('Render Recent Conversations', $e->getMessage());
+            printf(
+                '<p>%s</p>',
+                esc_html__('Failed to load recent conversations.', 'openwebui-chatbot')
+            );
         }
     }
-
+    
+    /**
+     * Render contact list for contacts page
+     */
     public function render_contact_list() {
         if (!class_exists('OWUI_Contact_Extractor')) {
-            echo '<tr><td colspan="6">Contact extractor not available.</td></tr>';
+            printf(
+                '<tr><td colspan="6">%s</td></tr>',
+                esc_html__('Contact extractor not available.', 'openwebui-chatbot')
+            );
             return;
         }
         
-        $extractor = new OWUI_Contact_Extractor();
-        $contacts = $extractor->get_recent_contacts_grouped(50);
+        try {
+            $extractor = new OWUI_Contact_Extractor();
+            $contacts = $extractor->get_recent_contacts_grouped(50);
 
-        if (empty($contacts)) {
-            echo '<tr><td colspan="6">No contact information found.</td></tr>';
-            return;
+            if (empty($contacts)) {
+                printf(
+                    '<tr><td colspan="6">%s</td></tr>',
+                    esc_html__('No contact information found.', 'openwebui-chatbot')
+                );
+                return;
+            }
+
+            foreach ($contacts as $contact) {
+                printf('<tr>');
+                printf(
+                    '<td>%s</td>',
+                    esc_html(wp_date(get_option('date_format'), strtotime($contact->latest_date)))
+                );
+                printf(
+                    '<td>%s</td>',
+                    esc_html($contact->chatbot_name ?: __('Unknown', 'openwebui-chatbot'))
+                );
+                printf(
+                    '<td>%s</td>',
+                    esc_html($contact->names ?: '-')
+                );
+                printf(
+                    '<td>%s</td>',
+                    esc_html($contact->emails ?: '-')
+                );
+                printf(
+                    '<td>%s</td>',
+                    esc_html($contact->phones ?: '-')
+                );
+                printf(
+                    '<td><small>%s</small></td>',
+                    esc_html($contact->session_id)
+                );
+                printf('</tr>');
+            }
+            
+        } catch (Exception $e) {
+            owui_log_error('Render Contact List', $e->getMessage());
+            printf(
+                '<tr><td colspan="6">%s</td></tr>',
+                esc_html__('Failed to load contact information.', 'openwebui-chatbot')
+            );
         }
-
-        foreach ($contacts as $contact) {
-            echo '<tr>';
-            echo '<td>' . esc_html(date('M j, Y', strtotime($contact->latest_date))) . '</td>';
-            echo '<td>' . esc_html($contact->chatbot_name ?: 'Unknown') . '</td>';
-            echo '<td>' . esc_html($contact->names ?: '-') . '</td>';
-            echo '<td>' . esc_html($contact->emails ?: '-') . '</td>';
-            echo '<td>' . esc_html($contact->phones ?: '-') . '</td>';
-            echo '<td><small>' . esc_html($contact->session_id) . '</small></td>';
-            echo '</tr>';
-        }
-    }
-
-    public function get_active_chatbots_count() {
-        global $wpdb;
-        return $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}owui_chatbots WHERE is_active = 1");
-    }
-
-    public function get_total_conversations() {
-        global $wpdb;
-        return $wpdb->get_var("SELECT COUNT(DISTINCT session_id) FROM {$wpdb->prefix}owui_chat_history WHERE session_id IS NOT NULL");
-    }
-
-    public function get_total_contacts() {
-        global $wpdb;
-        return $wpdb->get_var("SELECT COUNT(DISTINCT session_id) FROM {$wpdb->prefix}owui_contact_info");
-    }
-
-    public function render_recent_conversations() {
-        global $wpdb;
-        $conversations = $wpdb->get_results("
-            SELECT h.*, c.name as chatbot_name 
-            FROM {$wpdb->prefix}owui_chat_history h 
-            LEFT JOIN {$wpdb->prefix}owui_chatbots c ON h.chatbot_id = c.id 
-            ORDER BY h.created_at DESC 
-            LIMIT 10
-        ");
-
-        if (empty($conversations)) {
-            echo '<p>' . esc_html__('No conversations yet.', 'openwebui-chatbot') . '</p>';
-            return;
-        }
-
-        echo '<table class="wp-list-table widefat fixed striped">';
-        echo '<thead><tr><th>Time</th><th>Chatbot</th><th>Message</th><th>Response</th></tr></thead>';
-        echo '<tbody>';
-        foreach ($conversations as $conv) {
-            echo '<tr>';
-            echo '<td>' . esc_html(human_time_diff(strtotime($conv->created_at), current_time('timestamp')) . ' ago') . '</td>';
-            echo '<td>' . esc_html($conv->chatbot_name ?: 'Unknown') . '</td>';
-            echo '<td>' . esc_html(wp_trim_words($conv->message, 10)) . '</td>';
-            echo '<td>' . esc_html(wp_trim_words($conv->response, 10)) . '</td>';
-            echo '</tr>';
-        }
-        echo '</tbody></table>';
     }
 }
